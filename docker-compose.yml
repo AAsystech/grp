@@ -1,0 +1,12 @@
+services:
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+
+    container_name: grp-backend
+
+    ports:
+      - "8000:8000"
+
+    restart: unless-stopped

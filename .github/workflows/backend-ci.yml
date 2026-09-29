@@ -1,0 +1,35 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: apps/backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: apps/backend
+        run: pip install -r requirements.txt
+
+      - name: Verify backend imports
+        working-directory: apps/backend
+        run: python -c "from app.main import app; print('Backend import successful')"
+
+      - name: Build backend Docker image
+        run: docker build -t grp-backend ./apps/backend
