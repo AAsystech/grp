@@ -36,5 +36,11 @@ jobs:
         working-directory: apps/backend
         run: python -c "from app.main import app; print('Backend import successful')"
 
+      - name: Validate Alembic configuration
+        run: alembic -c database/alembic.ini heads
+
+      - name: Validate Alembic migration history
+        run: alembic -c database/alembic.ini history
+
       - name: Build backend Docker image
         run: docker build -t grp-backend ./apps/backend
