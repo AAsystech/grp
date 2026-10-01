@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  migrate-production:
-    name: Migrate Production Database
+  production-deploy:
+    name: Deploy Backend to Production
     runs-on: ubuntu-latest
     environment: production
 
@@ -28,13 +28,6 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: alembic -c database/alembic.ini upgrade head
 
-  deploy-production:
-    name: Deploy Backend to Production
-    needs: migrate-production
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
       - name: Production deployment pending GCP setup
         if: ${{ vars.GCP_DEPLOYMENT_ENABLED != 'true' }}
         run: |
