@@ -54,4 +54,4 @@ jobs:
         run: alembic -c database/alembic.ini history
 
       - name: Build backend Docker image
-        run: docker build -t grp-backend ./apps/backend
+        run: docker build -f apps/backend/Dockerfile -t grp-backend .
