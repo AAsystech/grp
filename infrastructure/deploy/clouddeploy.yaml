@@ -1,0 +1,58 @@
+apiVersion: deploy.cloud.google.com/v1
+kind: DeliveryPipeline
+
+metadata:
+  name: grp-backend-pipeline
+
+description: GRP backend staging to production deployment pipeline
+
+serialPipeline:
+  stages:
+    - targetId: grp-staging
+      profiles:
+        - staging
+
+    - targetId: grp-production
+      profiles:
+        - production
+      strategy:
+        standard:
+          predeploy:
+            tasks:
+              - type: container
+                image: grp-backend-migration
+                command:
+                  - /bin/sh
+                args:
+                  - -c
+                  - |
+                    echo "Production database migration will run here."
+                    echo "Release: ${CLOUD_DEPLOY_RELEASE}"
+
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+
+metadata:
+  name: grp-staging
+
+description: GRP backend staging environment
+
+requireApproval: false
+
+run:
+  location: projects/REPLACE_WITH_STAGING_PROJECT_ID/locations/REPLACE_WITH_REGION
+
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+
+metadata:
+  name: grp-production
+
+description: GRP backend production environment
+
+requireApproval: true
+
+run:
+  location: projects/REPLACE_WITH_PRODUCTION_PROJECT_ID/locations/REPLACE_WITH_REGION

@@ -17,8 +17,13 @@ jobs:
     environment: staging
 
     steps:
-      - name: Checkout repository
+      - name: Checkout staging release
         uses: actions/checkout@v4
+
+      - name: Display staging release
+        run: |
+          echo "Staging release:"
+          git rev-parse HEAD
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,13 +40,21 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: alembic -c database/alembic.ini upgrade head
 
+      - name: Build staging Docker image
+        run: docker build -f apps/backend/Dockerfile -t grp-backend:${{ github.sha }} .
+
+      - name: Verify staging Docker image
+        run: docker image inspect grp-backend:${{ github.sha }}
+
       - name: Staging deployment pending GCP setup
         if: ${{ vars.GCP_DEPLOYMENT_ENABLED != 'true' }}
         run: |
           echo "GCP deployment is not enabled yet."
           echo "Staging database migration completed successfully."
+          echo "Staging release: ${{ github.sha }}"
+          echo "Docker image: grp-backend:${{ github.sha }}"
           echo "Backend deployment will be enabled after Google Cloud setup."
 
-      # Google Cloud staging deployment will be added here
-      # after the GCP project, service account, and deployment
-      # configuration are ready.
+      # Google Cloud deployment will be added here.
+      # The deployment will use the exact Docker image
+      # tagged with the staging release SHA.
