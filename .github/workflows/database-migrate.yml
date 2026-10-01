@@ -1,0 +1,29 @@
+name: Database Migration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate-staging:
+    name: Migrate Staging Database
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: database/requirements.txt
+
+      - name: Install database dependencies
+        run: pip install -r database/requirements.txt
+
+      - name: Run staging migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: alembic -c database/alembic.ini upgrade head
