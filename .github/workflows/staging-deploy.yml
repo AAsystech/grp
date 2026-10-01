@@ -1,0 +1,47 @@
+name: Staging Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/backend/**"
+      - "database/**"
+      - "infrastructure/**"
+      - ".github/workflows/staging-deploy.yml"
+
+jobs:
+  staging-deploy:
+    name: Deploy Backend to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: database/requirements.txt
+
+      - name: Install database dependencies
+        run: pip install -r database/requirements.txt
+
+      - name: Run staging migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: alembic -c database/alembic.ini upgrade head
+
+      - name: Staging deployment pending GCP setup
+        if: ${{ vars.GCP_DEPLOYMENT_ENABLED != 'true' }}
+        run: |
+          echo "GCP deployment is not enabled yet."
+          echo "Staging database migration completed successfully."
+          echo "Backend deployment will be enabled after Google Cloud setup."
+
+      # Google Cloud staging deployment will be added here
+      # after the GCP project, service account, and deployment
+      # configuration are ready.
