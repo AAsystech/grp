@@ -83,7 +83,7 @@ jobs:
             --region "$REGION" \
             --project "$PROJECT_ID" \
             --platform managed \
-            --service-account "332843712832-compute@developer.gserviceaccount.com" \
+            --service-account "grp-backend-runtime@grp-511923.iam.gserviceaccount.com" \
             --no-allow-unauthenticated \
             --quiet
 
