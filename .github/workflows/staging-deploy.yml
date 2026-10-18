@@ -1,3 +1,4 @@
+
 name: Staging Deployment
 
 on:
@@ -10,51 +11,85 @@ on:
       - "infrastructure/**"
       - ".github/workflows/staging-deploy.yml"
 
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: grp-staging-deploy
+  cancel-in-progress: false
+
 jobs:
   staging-deploy:
     name: Deploy Backend to Staging
     runs-on: ubuntu-latest
     environment: staging
 
-    steps:
-      - name: Checkout staging release
-        uses: actions/checkout@v4
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      REPOSITORY: grp-backend
+      SERVICE: grp-backend-staging
 
-      - name: Display staging release
-        run: |
-          echo "Staging release:"
-          git rev-parse HEAD
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-          cache: "pip"
-          cache-dependency-path: database/requirements.txt
 
       - name: Install database dependencies
         run: pip install -r database/requirements.txt
 
-      - name: Run staging migrations
+      - name: Run staging database migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: alembic -c database/alembic.ini upgrade head
-
-      - name: Build staging Docker image
-        run: docker build -f apps/backend/Dockerfile -t grp-backend:${{ github.sha }} .
-
-      - name: Verify staging Docker image
-        run: docker image inspect grp-backend:${{ github.sha }}
-
-      - name: Staging deployment pending GCP setup
-        if: ${{ vars.GCP_DEPLOYMENT_ENABLED != 'true' }}
         run: |
-          echo "GCP deployment is not enabled yet."
-          echo "Staging database migration completed successfully."
-          echo "Staging release: ${{ github.sha }}"
-          echo "Docker image: grp-backend:${{ github.sha }}"
-          echo "Backend deployment will be enabled after Google Cloud setup."
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Staging DATABASE_URL is missing"
+            exit 1
+          fi
+          alembic -c database/alembic.ini upgrade head
 
-      # Google Cloud deployment will be added here.
-      # The deployment will use the exact Docker image
-      # tagged with the staging release SHA.
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker authentication
+        run: |
+          gcloud auth configure-docker \
+            "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build Docker image
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/grp-backend:${GITHUB_SHA}"
+          docker build -f apps/backend/Dockerfile -t "$IMAGE" .
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Push Docker image
+        run: docker push "$IMAGE"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --project "$PROJECT_ID" \
+            --platform managed \
+            --service-account "332843712832-compute@developer.gserviceaccount.com" \
+            --no-allow-unauthenticated \
+            --quiet
+
+      - name: Display deployment URL
+        run: |
+          gcloud run services describe "$SERVICE" \
+            --region "$REGION" \
+            --project "$PROJECT_ID" \
+            --format="value(status.url)"
